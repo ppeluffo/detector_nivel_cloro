@@ -73,50 +73,38 @@ extern "C" {
 #include "xprintf.h"
 
 #define FW_REV "1.0.0 beta"
-#define FW_DATE "@ 20220518"
+#define FW_DATE "@ 20220727"
 #define HW_MODELO "Sensor Nivel Cloro FRTOS R001 HW:AVR128DA64"
 #define FRTOS_VERSION "FW:FreeRTOS V202111.00"
 
 #define SYSMAINCLK 24
 
-#define tkDac_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkCtl_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
-#define tkSensor_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY 	( tskIDLE_PRIORITY + 1 )
-#define tkInputs_TASK_PRIORITY 	( tskIDLE_PRIORITY + 1 )
 
-#define tkDac_STACK_SIZE		384
 #define tkCtl_STACK_SIZE		384
-#define tkSensor_STACK_SIZE		384
 #define tkCmd_STACK_SIZE		384
-#define tkInputs_STACK_SIZE		384
-
-StaticTask_t tkDac_Buffer_Ptr;
-StackType_t tkDac_Buffer [tkDac_STACK_SIZE];
+#define tkSystem_STACK_SIZE		384
 
 StaticTask_t tkCtl_Buffer_Ptr;
 StackType_t tkCtl_Buffer [tkCtl_STACK_SIZE];
 
-StaticTask_t tkSensor_Buffer_Ptr;
-StackType_t tkSensor_Buffer [tkSensor_STACK_SIZE];
-
 StaticTask_t tkCmd_Buffer_Ptr;
 StackType_t tkCmd_Buffer [tkCmd_STACK_SIZE];
 
-StaticTask_t tkInputs_Buffer_Ptr;
-StackType_t tkInputs_Buffer [tkInputs_STACK_SIZE];
+StaticTask_t tkSystem_Buffer_Ptr;
+StackType_t tkSystem_Buffer [tkSystem_STACK_SIZE];
 
 SemaphoreHandle_t sem_SYSVars;
 StaticSemaphore_t SYSVARS_xMutexBuffer;
 #define MSTOTAKESYSVARSSEMPH ((  TickType_t ) 10 )
 
-TaskHandle_t xHandle_tkDac, xHandle_tkCtl, xHandle_tkSensor, xHandle_tkCmd, xHandle_tkInputs;
+TaskHandle_t xHandle_tkCtl, xHandle_tkCmd, xHandle_tkSystem;
 
-void tkDac(void * pvParameters);
 void tkCtl(void * pvParameters);
-void tkSensor(void * pvParameters);
 void tkCmd(void * pvParameters);
-void tkInputs(void * pvParameters);
+void tkSystem(void * pvParameters);
+
 
 void system_init();
 void reset(void);
@@ -126,29 +114,43 @@ void xputChar(unsigned char c);
 
 void kick_wdt( uint8_t bit_pos);
 
-void acgen_run(void);
-void acgen_stop(void);
-void acgen_freq_hz(uint16_t freq);
-
 void config_default(void);
 bool save_config_in_NVM(void);
 bool load_config_from_NVM(void);
+void convert_adc2dac(void);
+void convert_adc2vin(void);
+void convert_adcvin2retape(void);
+void convert_retape2hetape(void);
+void convert_hetape2dac(void);
 
-
-void acgen_setup_outofrtos(void );
-
-#define MAX_LENGTH 32
 
 bool starting_flag;
 
+typedef enum { MODO_NORMAL=0, MODO_DIAGNOSTICO } t_modo_operativo;
+
 struct {
     uint16_t dac;
-    bool acgen_running;
-    uint16_t acgen_freq_hz;
-    uint8_t checksum;
-    uint16_t dinputs;
-
+    uint16_t adc;
+    uint8_t modo;
+    float vin_adc;
+    float r_etape;
+    float h_etape;
+    
+    
+    bool debug;
 } systemVars;
+
+struct {
+    float VREF_ADC;
+    float VREF_ETAPE;
+    uint16_t RETAPE_FIX;
+    uint16_t HETAPE_MIN;
+    uint16_t HETAPE_MAX;
+    uint16_t RETAPE_HMIN;
+    uint16_t RETAPE_HMAX;
+    //
+    uint8_t checksum;
+} systemConf;
 
 uint8_t sys_watchdog;
 
@@ -156,10 +158,8 @@ uint8_t sys_watchdog;
 #define CMD_WDG_bp    0
 #define CTL_WDG_bm 0x02
 #define CTL_WDG_bp    1
-#define DAC_WDG_bm 0x04
-#define DAC_WDG_bp    2
-//#define LRA_WDG_bm 0x08
-//#define LRA_WDG_bp    3
+#define SYS_WDG_bm 0x04
+#define SYS_WDG_bp    2
 
 #define WDG_bm 0x07
 

@@ -16,13 +16,14 @@ extern "C" {
 //#include "xc.h"
 #include <avr/io.h>
 #include "stdint.h"
+#include "stdbool.h"
     
 /* Mask needed to get the 2 LSb for DAC Data Register */
 #define LSB_MASK    (0x03)
         
 void VREF_init(void);
 void DAC_init(void);
-void DAC_setVal(uint16_t value);
+bool DAC_setVal(uint16_t value);
 
 
 #ifdef	__cplusplus

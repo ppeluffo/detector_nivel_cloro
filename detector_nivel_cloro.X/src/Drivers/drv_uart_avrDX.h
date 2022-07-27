@@ -24,25 +24,23 @@
 #define USART_SET_BAUD_RATE(BAUD_RATE) ((float)(F_CPU * 64 / (16 * (float)BAUD_RATE)) + 0.5);
 
 //-----------------------------------------------------------------------
-#define UART3_TXSIZE	8	// trasmito por poleo. Si uso interrupcion lo subo a 128
-uint8_t uart3_txBuffer[UART3_TXSIZE];
+#define UART0_TXSIZE	8	// trasmito por poleo. Si uso interrupcion lo subo a 128
+uint8_t uart0_txBuffer[UART0_TXSIZE];
 
-#define UART3_RXSIZE	64	// 
-uint8_t uart3_rxBuffer[UART3_RXSIZE];
+#define UART0_RXSIZE	64	// 
+uint8_t uart0_rxBuffer[UART0_RXSIZE];
         
-#define UART4_TXSIZE	8	// trasmito por poleo. Si uso interrupcion lo subo a 128
-uint8_t uart4_txBuffer[UART4_TXSIZE];
+#define UART1_TXSIZE	8	// trasmito por poleo. Si uso interrupcion lo subo a 128
+uint8_t uart1_txBuffer[UART1_TXSIZE];
 
-#define UART4_RXSIZE	64	// 
-uint8_t uart4_rxBuffer[UART4_RXSIZE];
+#define UART1_RXSIZE	64	// 
+uint8_t uart1_rxBuffer[UART1_RXSIZE];
 
-rBchar_s TXRB_uart3, RXRB_uart3;
+rBchar_s TXRB_uart0, RXRB_uart0;
+rBchar_s TXRB_uart1, RXRB_uart1;
 
-        
-rBchar_s TXRB_uart4, RXRB_uart4;
-
-void drv_uart3_init(uint32_t baudrate );
-void drv_uart4_init(uint32_t baudrate );
+void drv_uart0_init(uint32_t baudrate );
+void drv_uart1_init(uint32_t baudrate );
 
 //-----------------------------------------------------------------------
 

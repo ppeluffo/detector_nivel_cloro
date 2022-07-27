@@ -1,6 +1,10 @@
 #include "detector_nivel_cloro.h"
+
 #include "frtos_cmd.h"
 #include "pines.h"
+#include "dac.h"
+#include "adc.h"
+
 
 static void cmdClsFunction(void);
 static void cmdHelpFunction(void);
@@ -40,8 +44,8 @@ uint8_t c = 0;
     FRTOS_CMD_register( "config", cmdConfigFunction );
     FRTOS_CMD_register( "test", cmdTestFunction );
     
-    xprintf( "Starting tkCmd..\r\n" );
-    xprintf("Spymovil %s %s %s %s \r\n" , HW_MODELO, FRTOS_VERSION, FW_REV, FW_DATE);
+    xprintf_P(PSTR("Starting tkCmd..\r\n" ));
+    xprintf_P(PSTR("Spymovil %s %s %s %s \r\n") , HW_MODELO, FRTOS_VERSION, FW_REV, FW_DATE);
     
 	// loop
 	for( ;; )
@@ -108,17 +112,19 @@ static void cmdHelpFunction(void)
     if ( strcmp( strupr(argv[1]), "WRITE") == 0 ) {
 		xprintf("-write:\r\n");
         xprintf("   dac{val}\r\n");
-        xprintf("   ac0,ac1 {0/1}\r\n");
-        xprintf("   acgen {run/stop}\r\n");
         
     }  else if ( strcmp( strupr(argv[1]), "CONFIG") == 0 ) {
 		xprintf("-config:\r\n");
 		xprintf("   default,save,load\r\n");
-        xprintf("   acfreq {val}\r\n");
+        xprintf("   modo {NORMAL,DIAG}\r\n");
+        xprintf("   debug {ON,OFF}\r\n");
+        xprintf("   VREF_ADC,VREF_ETAPE\r\n");
+        xprintf("   RETAPE_FIX,RETAPE_HMIN,RETAPE_HMAX\r\n");
+        xprintf("   HETAPE_MIN,HETAPE_MAX\r\n");
 
     }  else if ( strcmp( strupr(argv[1]), "READ") == 0 ) {
 		xprintf("-read:\r\n");
-		xprintf("   dac, acgen, dinputs\r\n");
+		xprintf("   adc {samples}\r\n");
         
     }  else {
         // HELP GENERAL
@@ -155,6 +161,29 @@ static void cmdStatusFunction(void)
     // https://stackoverflow.com/questions/12844117/printing-defined-constants
     
     xprintf("Spymovil %s %s %s %s \r\n" , HW_MODELO, FRTOS_VERSION, FW_REV, FW_DATE);
+    // modo
+    if ( systemVars.modo == MODO_NORMAL ) {
+        xprintf_P(PSTR(" Modo: NORMAL\r\n"));
+    } else {
+        xprintf_P(PSTR(" Modo: DIAGNOSTICO\r\n"));
+    }
+    // debug
+    if ( systemVars.debug ) {
+        xprintf_P(PSTR(" Debug: ON\r\n"));
+    } else {
+        xprintf_P(PSTR(" Debug: OFF\r\n"));
+    }
+    xprintf_P(PSTR(" VREF_ADC=%0.3f\r\n"), systemConf.VREF_ADC);
+    xprintf_P(PSTR(" VREF_ETAPE=%0.3f\r\n"), systemConf.VREF_ETAPE);
+    xprintf_P(PSTR(" RETAPE_FIX=%d\r\n"), systemConf.RETAPE_FIX);
+    xprintf_P(PSTR(" RETAPE_HMIN=%d\r\n"), systemConf.RETAPE_HMIN);
+    xprintf_P(PSTR(" RETAPE_HMAX=%d\r\n"), systemConf.RETAPE_HMAX);
+    xprintf_P(PSTR(" HETAPE_MIN=%d\r\n"), systemConf.HETAPE_MIN);
+    xprintf_P(PSTR(" HETAPE_MAX=%d\r\n"), systemConf.HETAPE_MAX);
+    
+    xprintf_P(PSTR(" DAC=%d\r\n"),systemVars.dac);
+    xprintf_P(PSTR(" ADC=%d\r\n"),systemVars.adc);
+    
 }
 //------------------------------------------------------------------------------
 static void cmdWriteFunction(void)
@@ -162,6 +191,14 @@ static void cmdWriteFunction(void)
 
     FRTOS_CMD_makeArgv(); 
         
+    // write DAC
+    if ( strcmp( strupr(argv[1]),"DAC") == 0 ) {
+        systemVars.dac = atoi(argv[2]);
+        DAC_setVal(systemVars.dac);
+        pv_snprintfP_OK();
+        return;
+    }
+
     // CMD NOT FOUND
 	xprintf("ERROR\r\nCMD NOT DEFINED\r\n\0");
 	return;
@@ -170,9 +207,28 @@ static void cmdWriteFunction(void)
 //------------------------------------------------------------------------------
 static void cmdReadFunction(void)
 {
+ 
     
+uint8_t samples;
+
     FRTOS_CMD_makeArgv();
         
+    // read ADC
+    if ( strcmp( strupr(argv[1]),"ADC") == 0 ) {
+        samples = atoi(argv[2]);
+        if ( ( samples == 0) || (samples > 32)) {
+            pv_snprintfP_ERR();
+            return;
+        }
+
+        systemVars.adc = ADC_read(samples);
+        
+        xprintf_P(PSTR("ADC=%d\r\n"), systemVars.adc);
+        pv_snprintfP_OK();
+        return;
+    }
+    
+    
     // CMD NOT FOUND
 	xprintf("ERROR\r\nCMD NOT DEFINED\r\n\0");
 	return;
@@ -188,6 +244,87 @@ static void cmdConfigFunction(void)
 	if ( strcmp( strupr(argv[1]),"DEFAULT") == 0  ) {
 		config_default();
 		return;
+	}
+
+    // HETAPE_MAX
+    if ( strcmp( strupr(argv[1]),"HETAPE_MAX") == 0  ) {
+        systemConf.HETAPE_MAX = atoi(argv[2]);
+        pv_snprintfP_OK();
+        return;   
+    }
+    
+    // HETAPE_MIN
+    if ( strcmp( strupr(argv[1]),"HETAPE_MIN") == 0  ) {
+        systemConf.HETAPE_MIN = atoi(argv[2]);
+        pv_snprintfP_OK();
+        return;   
+    }
+    
+    // RETAPE_HMAX
+    if ( strcmp( strupr(argv[1]),"RETAPE_HMAX") == 0  ) {
+        systemConf.RETAPE_HMAX = atoi(argv[2]);
+        pv_snprintfP_OK();
+        return;   
+    }
+
+    // RETAPE_HMIN
+    if ( strcmp( strupr(argv[1]),"RETAPE_HMIN") == 0  ) {
+        systemConf.RETAPE_HMIN = atoi(argv[2]);
+        pv_snprintfP_OK();
+        return;   
+    }
+    
+    // RETAPE_FIX
+    if ( strcmp( strupr(argv[1]),"RETAPE_FIX") == 0  ) {
+        systemConf.RETAPE_FIX = atoi(argv[2]);
+        pv_snprintfP_OK();
+        return;   
+    }
+    
+    // VREF_ETAPE
+    if ( strcmp( strupr(argv[1]),"VREF_ETAPE") == 0  ) {
+        systemConf.VREF_ETAPE = atof(argv[2]);
+        pv_snprintfP_OK();
+        return;   
+    }
+    
+    // VREF_ADC
+    if ( strcmp( strupr(argv[1]),"VREF_ADC") == 0  ) {
+        systemConf.VREF_ADC = atof(argv[2]);
+        pv_snprintfP_OK();
+        return;   
+    }
+    
+    // modo (NORMAL,DIAG)
+	if ( strcmp( strupr(argv[1]),"MODO") == 0  ) {
+		if ( strcmp( strupr(argv[2]),"NORMAL") == 0  ) {
+            systemVars.modo = MODO_NORMAL;
+            pv_snprintfP_OK();
+            return;
+        }
+		if ( strcmp( strupr(argv[2]),"DIAG") == 0  ) {
+            systemVars.modo = MODO_DIAGNOSTICO;
+             pv_snprintfP_OK();
+             return;
+        }        
+        pv_snprintfP_ERR();
+        return;        
+	}
+    
+    // debug (ON,OFF)
+	if ( strcmp( strupr(argv[1]),"DEBUG") == 0  ) {
+		if ( strcmp( strupr(argv[2]),"ON") == 0  ) {
+            systemVars.debug = true;
+             pv_snprintfP_OK();
+             return;
+        }
+		if ( strcmp( strupr(argv[2]),"OFF") == 0  ) {
+            systemVars.debug = false;
+             pv_snprintfP_OK();
+             return;
+        }        
+        pv_snprintfP_ERR();
+        return;        
 	}
     
     // save

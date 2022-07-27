@@ -18,11 +18,6 @@ StaticSemaphore_t STDOUT_xMutexBuffer;
 #include <stdint.h>
 
 //------------------------------------------------------------------------------
-void putch(char c)
-{    
-
-}
-//------------------------------------------------------------------------------
 void XPRINTF_init(void)
 {
    // La UART queda abierta con frtos_open()

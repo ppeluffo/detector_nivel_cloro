@@ -3,16 +3,6 @@
 
 
 //------------------------------------------------------------------------------
-void VREF_init(void)
-{
-    /*
-     Para usar le DAC debemos configurar su voltaje de referencia.
-     */
-    //VREF.DAC0REF = VREF_REFSEL_2V500_gc | VREF_ALWAYSON_bm;
-    VREF.DAC0REF = VREF_REFSEL_VREFA_gc | VREF_ALWAYSON_bm;
-
-}
-//------------------------------------------------------------------------------
 void DAC_init(void)
 {
     /* Disable digital input buffer */
@@ -24,17 +14,31 @@ void DAC_init(void)
     /* Enable output buffer */
     /* Enable Run in Standby mode */ 
     DAC0.CTRLA = DAC_ENABLE_bm | DAC_OUTEN_bm | DAC_RUNSTDBY_bm;
-   
+ 
+    DAC0.DATA = 0x0 << DAC_DATA_gp; /* DATA Register: 0x0 */
+    
+       /*
+     Para usar le DAC debemos configurar su voltaje de referencia.
+     */
+    VREF.DAC0REF = VREF_REFSEL_2V500_gc | VREF_ALWAYSON_bm;
+    //VREF.DAC0REF = VREF_REFSEL_VREFA_gc | VREF_ALWAYSON_bm;
+
 }
 //------------------------------------------------------------------------------
-void DAC_setVal(uint16_t value)
+bool DAC_setVal(uint16_t value)
 {
     // value es de 10 bits o sea que va de 0 a 1023
     
+    if ((value > 1023) || ( value < 0)) {
+        return(false);
+    }
+
     /* Store the two LSbs in DAC0.DATAL */
     DAC0.DATAL = (value & LSB_MASK) << 6;
     /* Store the eight MSbs in DAC0.DATAH */
     DAC0.DATAH = value >> 2;
+    
+    return (true);
 }
 //------------------------------------------------------------------------------
 uint16_t DAC_convertLevel2Value(uint8_t level )

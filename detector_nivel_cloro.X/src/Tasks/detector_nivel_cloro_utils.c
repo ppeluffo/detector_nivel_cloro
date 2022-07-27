@@ -13,6 +13,7 @@
 #include "dac.h"
 #include "pines.h"
 #include "nvm.h"
+#include "adc.h"
 
 //------------------------------------------------------------------------------
 int8_t WDT_init(void);
@@ -27,10 +28,8 @@ void system_init()
     WDT_init();
     LED_init();
     XPRINTF_init();
-    VREF_init();
     DAC_init();
-    ACGEN_init();
-    PINPUTS_init();
+    ADC_init();
     
 }
 //-----------------------------------------------------------------------------
@@ -74,7 +73,14 @@ void kick_wdt( uint8_t bit_pos)
 //------------------------------------------------------------------------------
 void config_default(void)
 {
-        
+
+   systemConf.VREF_ADC = 2.5;
+   systemConf.VREF_ETAPE = 3.3;
+   systemConf.RETAPE_FIX = 2400;
+   systemConf.HETAPE_MIN = 3;
+   systemConf.HETAPE_MAX = 45.0;
+   systemConf.RETAPE_HMIN = 400;
+   systemConf.RETAPE_HMAX = 2400;
 }
 //------------------------------------------------------------------------------
 bool save_config_in_NVM(void)
@@ -83,10 +89,10 @@ bool save_config_in_NVM(void)
 int8_t retVal;
 uint8_t cks;
 
-    cks = checksum ( (uint8_t *)&systemVars, ( sizeof(systemVars) - 1));
-    systemVars.checksum = cks;
+    cks = checksum ( (uint8_t *)&systemConf, ( sizeof(systemConf) - 1));
+    systemConf.checksum = cks;
     
-    retVal = NVM_EE_write( 0x00, (char *)&systemVars, sizeof(systemVars) );
+    retVal = NVM_EE_write( 0x00, (char *)&systemConf, sizeof(systemConf) );
     if (retVal == -1 )
         return(false);
     
@@ -99,10 +105,10 @@ bool load_config_from_NVM(void)
 
 uint8_t rd_cks, calc_cks;
     
-    NVM_EE_read( 0x00, (char *)&systemVars, sizeof(systemVars) );
-    rd_cks = systemVars.checksum;
+    NVM_EE_read( 0x00, (char *)&systemConf, sizeof(systemConf) );
+    rd_cks = systemConf.checksum;
     
-    calc_cks = checksum ( (uint8_t *)&systemVars, ( sizeof(systemVars) - 1));
+    calc_cks = checksum ( (uint8_t *)&systemConf, ( sizeof(systemConf) - 1));
     
     if ( calc_cks != rd_cks ) {
 		xprintf_P( PSTR("ERROR: Checksum systemVars failed: calc[0x%0x], read[0x%0x]\r\n"), calc_cks, rd_cks );
@@ -132,5 +138,88 @@ uint16_t i = 0;
 
 	return(cks);
 }
+//------------------------------------------------------------------------------
+void convert_adc2vin(void)
+{
+    /*
+     Convierte el valor del ADC al votaje que esta a la entrada
+    */
+    systemVars.vin_adc = systemVars.adc * systemConf.VREF_ADC / 4096;
+    if (systemVars.debug) {
+        xprintf_P(PSTR("DEBUG: vinadc=%0.3f\r\n"), systemVars.vin_adc);
+    }
+}
+//------------------------------------------------------------------------------
+void convert_adcvin2retape(void)
+{
+    /*
+     Convierte el votaje que esta a la entrada del adc en la rEtape
+    */
+    systemVars.r_etape = systemVars.vin_adc * systemConf.RETAPE_FIX / ( systemConf.VREF_ETAPE - systemVars.vin_adc );
+    if (systemVars.debug) {
+        xprintf_P(PSTR("DEBUG: rEtape=%0.3f\r\n"), systemVars.r_etape);
+    }
+}
+//------------------------------------------------------------------------------
+void convert_retape2hetape(void)
+{
+    /*
+     Convierte la resistencia rEtape en la altura.
+    */
+    systemVars.h_etape = ( systemVars.r_etape - systemConf.RETAPE_HMIN ) * ( systemConf.HETAPE_MAX - systemConf.HETAPE_MIN);
+    systemVars.h_etape /= (systemConf.RETAPE_HMAX - systemConf.RETAPE_HMIN);
+    systemVars.h_etape += systemConf.HETAPE_MIN;
+    if (systemVars.debug) {
+        xprintf_P(PSTR("DEBUG: hEtape=%d\r\n"), systemVars.h_etape );
+    }
+    
+}
+//------------------------------------------------------------------------------
+void convert_hetape2dac(void)
+{
+    /*
+     Convierte la altura de la eTape en el valor de DAC
+    */
+    
+float dac;
+    
+    dac = (1024-204)/(systemConf.HETAPE_MAX - systemConf.HETAPE_MIN);
+    dac *= ( systemVars.h_etape - systemConf.HETAPE_MIN);
+    dac += 204;
+    systemVars.dac = (uint16_t) dac;
+    
+    
+    if (systemVars.debug) {
+        xprintf_P(PSTR("DEBUG: dac=%d\r\n"), systemVars.dac );
+    }
+    
+}
+//------------------------------------------------------------------------------
+void convert_adc2dac(void)
+{
+    /*
+     * Convierto el valor del ADC ( etape ) el DAC ( corriente )
+     * Mido el ADC un voltaje que es el del divisor resitivo de la ETAPE
+     * Este voltaje es proporcional a la resistencia Etape  
+    */
+    
+  // Altura del la eTape
 
+float icc;
+
+    // A partir del valor del ADC calculo la altura de la eTape
+    convert_adc2vin();
+    convert_adcvin2retape();
+    convert_retape2hetape();
+    convert_hetape2dac();
+
+
+    // Convierto la altura a 4-20mA
+    icc = 20 * systemVars.dac / 1024;
+    
+    if (systemVars.debug) {
+        xprintf_P(PSTR("DEBUG: icc=%0.3f\r\n"), icc);
+        
+    }    
+}
 //------------------------------------------------------------------------------

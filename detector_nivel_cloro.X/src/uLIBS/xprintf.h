@@ -15,7 +15,6 @@ extern "C" {
 #include "avr/pgmspace.h"
     
     
-void putch(char c);
 void XPRINTF_init(void);
 int xprintf( const char *fmt, ...);
 int xprintf_P( PGM_P fmt, ...);

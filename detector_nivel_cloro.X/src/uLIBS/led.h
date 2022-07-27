@@ -18,7 +18,7 @@ extern "C" {
 #include "FreeRTOS.h"
 #include "task.h"
     
-#define LED_PORT	PORTD
+#define LED_PORT	PORTF
 #define LED_PIN_bm	PIN5_bm
 #define LED_PIN_bp  PIN5_bp
     

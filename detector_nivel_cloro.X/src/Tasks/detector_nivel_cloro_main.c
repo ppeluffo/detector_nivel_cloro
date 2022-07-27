@@ -147,13 +147,8 @@ int main(void) {
     sem_SYSVars = xSemaphoreCreateMutexStatic( &SYSVARS_xMutexBuffer );
     //starting_flag = false;
     
-    acgen_setup_outofrtos();
-    
-    xHandle_tkDac = xTaskCreateStatic( tkDac, "DAC", tkDac_STACK_SIZE, (void *)1, tkDac_TASK_PRIORITY, tkDac_Buffer, &tkDac_Buffer_Ptr );
     xHandle_tkCtl = xTaskCreateStatic( tkCtl, "CTL", tkCtl_STACK_SIZE, (void *)1, tkCtl_TASK_PRIORITY, tkCtl_Buffer, &tkCtl_Buffer_Ptr );
-    xHandle_tkSensor = xTaskCreateStatic( tkSensor, "SENS", tkSensor_STACK_SIZE, (void *)1, tkSensor_TASK_PRIORITY, tkSensor_Buffer, &tkSensor_Buffer_Ptr );
     xHandle_tkCmd = xTaskCreateStatic( tkCmd, "CMD", tkCmd_STACK_SIZE, (void *)1, tkCmd_TASK_PRIORITY, tkCmd_Buffer, &tkCmd_Buffer_Ptr );
-    xHandle_tkInputs = xTaskCreateStatic( tkInputs, "INP", tkInputs_STACK_SIZE, (void *)1, tkInputs_TASK_PRIORITY, tkInputs_Buffer, &tkInputs_Buffer_Ptr );
 
     /* Arranco el RTOS. */
 	vTaskStartScheduler();

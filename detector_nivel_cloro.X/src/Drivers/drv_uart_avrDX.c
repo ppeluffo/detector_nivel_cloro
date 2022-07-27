@@ -22,131 +22,131 @@
 #include "drv_uart_avrDX.h"
 
 //------------------------------------------------------------------------------
-// USART3: TERM
+// USART0: TERM
 //------------------------------------------------------------------------------
-void drv_uart3_init(uint32_t baudrate )
+void drv_uart0_init(uint32_t baudrate )
 {
     
-    PORTB.DIR &= ~PIN1_bm;
-    PORTB.DIR |= PIN0_bm;
-    USART3.BAUD = (uint16_t)USART_SET_BAUD_RATE(baudrate);     
-    USART3.CTRLC = USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc;
+    PORTA.DIR &= ~PIN1_bm;
+    PORTA.DIR |= PIN0_bm;
+    USART0.BAUD = (uint16_t)USART_SET_BAUD_RATE(baudrate);     
+    USART0.CTRLC = USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc;
     
     // Habilito el TX y el RX
-    USART3.CTRLB |= USART_TXEN_bm;
-    USART3.CTRLB |= USART_RXEN_bm;
+    USART0.CTRLB |= USART_TXEN_bm;
+    USART0.CTRLB |= USART_RXEN_bm;
     
     // Habilito las interrupciones por RX
-    USART3.CTRLA |= USART_RXCIE_bm;
+    USART0.CTRLA |= USART_RXCIE_bm;
     
     // Las transmisiones son por poleo no INT.
     
     // RingBuffer de transmision
-    TXRB_uart3.buff = uart3_txBuffer;
-	TXRB_uart3.head = 0;	// start
-	TXRB_uart3.tail = 0;	// end
-	TXRB_uart3.count = 0;
-	TXRB_uart3.length = UART3_TXSIZE;
+    TXRB_uart0.buff = uart0_txBuffer;
+	TXRB_uart0.head = 0;	// start
+	TXRB_uart0.tail = 0;	// end
+	TXRB_uart0.count = 0;
+	TXRB_uart0.length = UART0_TXSIZE;
     
     // RingBuffer de recepcion
-    RXRB_uart3.buff = uart3_rxBuffer;
-	RXRB_uart3.head = 0;	// start
-	RXRB_uart3.tail = 0;	// end
-	RXRB_uart3.count = 0;
-	RXRB_uart3.length = UART3_RXSIZE;
+    RXRB_uart0.buff = uart0_rxBuffer;
+	RXRB_uart0.head = 0;	// start
+	RXRB_uart0.tail = 0;	// end
+	RXRB_uart0.count = 0;
+	RXRB_uart0.length = UART0_RXSIZE;
 }
 //------------------------------------------------------------------------------
 /*
-ISR(USART3_DRE_vect)
+ISR(USART0_DRE_vect)
 {
-    // ISR de transmisión de la UART3 ( TERM )
+    // ISR de transmisión de la UART0 ( TERM )
     
 char cChar = ' ';
 int8_t res = false;
 
-	res = rBchar_PopFromISR( &TXRB_uart3, (char *)&cChar );
+	res = rBchar_PopFromISR( &TXRB_uart0, (char *)&cChar );
 
 	if( res == true ) {
 		// Send the next character queued for Tx
-		USART3.TXDATAL = cChar;
+		USART0.TXDATAL = cChar;
 	} else {
 		// Queue empty, nothing to send.Apago la interrupcion
-        USART3.CTRLB &= ~USART_TXEN_bm;
+        USART0.CTRLB &= ~USART_TXEN_bm;
 	}
 }
  */
 //-----------------------------------------------------------------------------
-ISR(USART3_RXC_vect)
+ISR(USART0_RXC_vect)
 {
     // Driver ISR: Cuando se genera la interrupcion por RXIE, lee el dato
     // y lo pone en la cola (ringBuffer.)
 char cChar = ' ';
 
-	cChar = USART3.RXDATAL;
- 	rBchar_PokeFromISR( &RXRB_uart3, &cChar );
+	cChar = USART0.RXDATAL;
+ 	rBchar_PokeFromISR( &RXRB_uart0, &cChar );
 }
 //------------------------------------------------------------------------------
-// USART4: LORA
+// USART1: MODBUS
 //------------------------------------------------------------------------------
-void drv_uart4_init(uint32_t baudrate )
+void drv_uart1_init(uint32_t baudrate )
 {
     
-    PORTE.DIR &= ~PIN1_bm;
-    PORTE.DIR |= PIN0_bm;
-    USART4.BAUD = (uint16_t)USART_SET_BAUD_RATE(baudrate);     
-    USART4.CTRLC = USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc;
+    PORTC.DIR &= ~PIN1_bm;
+    PORTC.DIR |= PIN0_bm;
+    USART1.BAUD = (uint16_t)USART_SET_BAUD_RATE(baudrate);     
+    USART1.CTRLC = USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc;
     
     // Habilito el TX y el RX
-    USART4.CTRLB |= USART_TXEN_bm;
-    USART4.CTRLB |= USART_RXEN_bm;
+    USART1.CTRLB |= USART_TXEN_bm;
+    USART1.CTRLB |= USART_RXEN_bm;
     
     // Habilito las interrupciones por RX
-    USART4.CTRLA |= USART_RXCIE_bm;
+    USART1.CTRLA |= USART_RXCIE_bm;
     
     // Las transmisiones son por poleo no INT.
     
     // RingBuffer de transmision
-    TXRB_uart4.buff = uart4_txBuffer;
-	TXRB_uart4.head = 0;	// start
-	TXRB_uart4.tail = 0;	// end
-	TXRB_uart4.count = 0;
-	TXRB_uart4.length = UART4_TXSIZE;
+    TXRB_uart1.buff = uart1_txBuffer;
+	TXRB_uart1.head = 0;	// start
+	TXRB_uart1.tail = 0;	// end
+	TXRB_uart1.count = 0;
+	TXRB_uart1.length = UART1_TXSIZE;
     
     // RingBuffer de recepcion
-    RXRB_uart4.buff = uart4_rxBuffer;
-	RXRB_uart4.head = 0;	// start
-	RXRB_uart4.tail = 0;	// end
-	RXRB_uart4.count = 0;
-	RXRB_uart4.length = UART4_RXSIZE;
+    RXRB_uart1.buff = uart1_rxBuffer;
+	RXRB_uart1.head = 0;	// start
+	RXRB_uart1.tail = 0;	// end
+	RXRB_uart1.count = 0;
+	RXRB_uart1.length = UART1_RXSIZE;
 }
 //------------------------------------------------------------------------------
 /*
-ISR(USART4_DRE_vect)
+ISR(USART1_DRE_vect)
 {
-    // ISR de transmisión de la UART4 ( LORA )
+    // ISR de transmisión de la UART1 ( MODBUS )
     
 char cChar = ' ';
 int8_t res = false;
 
-	res = rBchar_PopFromISR( &TXRB_uart4, (char *)&cChar );
+	res = rBchar_PopFromISR( &TXRB_uart1, (char *)&cChar );
 
 	if( res == true ) {
 		// Send the next character queued for Tx
-		USART4.TXDATAL = cChar;
+		USART1.TXDATAL = cChar;
 	} else {
 		// Queue empty, nothing to send.Apago la interrupcion
-        USART4.CTRLB &= ~USART_TXEN_bm;
+        USART1.CTRLB &= ~USART_TXEN_bm;
 	}
 }
  */
 //-----------------------------------------------------------------------------
-ISR(USART4_RXC_vect)
+ISR(USART1_RXC_vect)
 {
     // Driver ISR: Cuando se genera la interrupcion por RXIE, lee el dato
     // y lo pone en la cola (ringBuffer.)
 char cChar = ' ';
 
-	cChar = USART4.RXDATAL;
- 	rBchar_PokeFromISR( &RXRB_uart4, &cChar );
+	cChar = USART1.RXDATAL;
+ 	rBchar_PokeFromISR( &RXRB_uart1, &cChar );
 }
 //------------------------------------------------------------------------------
