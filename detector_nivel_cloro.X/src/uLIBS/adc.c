@@ -33,9 +33,8 @@ int8_t ADC_init()
 	ADC0.INTCTRL = 0 << ADC_RESRDY_bp /* Result Ready Interrupt Enable: disabled */
 			 | 0 << ADC_WCMP_bp; /* Window Comparator Interrupt Enable: disabled */
 
-	ADC0.MUXPOS = ADC_MUXPOS_AIN0_gc; /* ADC input pin 0 */
-    
-    
+	ADC0.MUXPOS = ADC_MUXPOS_AIN1_gc; /* ADC input pin 0 */
+        
 	ADC0.SAMPCTRL = 0x0 << ADC_SAMPLEN_gp; /* Sample length: 0x0 */
 
 	ADC0.WINHT = 0x0; /* Window Comparator High Threshold: 0x0 */
@@ -52,8 +51,8 @@ int8_t ADC_init()
     /*
      Para usar el ADC debemos configurar su voltaje de referencia.
      */
-    VREF.ADC0REF = VREF_REFSEL_2V500_gc | VREF_ALWAYSON_bm;
-    //VREF.ADC0REF = VREF_REFSEL_VREFA_gc | VREF_ALWAYSON_bm;
+    //VREF.ADC0REF = VREF_REFSEL_2V500_gc | VREF_ALWAYSON_bm;
+    VREF.ADC0REF = VREF_REFSEL_VREFA_gc | VREF_ALWAYSON_bm;
     
 	return 0;
 }
@@ -201,7 +200,7 @@ float adc_acc;
     // Muestreo
     for (i=0; i<samples; i++) {
          adc_buffer[i]=ADC_get_conversion(ADC_MUXPOS_AIN0_gc);
-         vTaskDelay( ( TickType_t)( 1 ) );
+         vTaskDelay( ( TickType_t)( 100 ) );
     }
         
     // Promedio

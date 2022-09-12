@@ -21,12 +21,16 @@ void tkCtl(void * pvParameters)
 	// Esta es la primer tarea que arranca.
 
 ( void ) pvParameters;
-    
+
+
 	vTaskDelay( ( TickType_t)( 500 / portTICK_PERIOD_MS ) );
     xprintf_P(PSTR("Starting tkCtl..\r\n"));
     
-    //if ( ! load_config_from_NVM()) 
-    //    config_default();
+    if ( ! load_config_from_NVM()) {
+        config_default();
+        save_config_in_NVM();
+    }
+     
     
     WDG_INIT();
 
@@ -36,7 +40,7 @@ void tkCtl(void * pvParameters)
     
     // Habilito a todas las otras tareas a arrancar
     starting_flag = true;
-       
+          
 	for( ;; )
 	{
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_PERIOD_MS ) );
@@ -51,11 +55,25 @@ void sys_watchdog_check(void)
     // El watchdog se inicializa en 7.
     // Cada tarea debe poner su bit en 0. Si alguna no puede, se resetea
     
-    //wdt_reset();
-    //return;
+static uint8_t wdg_count = 0;
+
+
+    wdt_reset();
+    return;
+        
+        
+    // EL wdg lo leo cada 120 secs
+    if ( wdg_count++ < 60 ) {
+        wdt_reset();
+        return;
+    }
     
+
+    // Analizo los watchdows individuales
+    wdg_count = 0;
+
     if ( sys_watchdog != 0 ) {  
-        xprintf_P(PSTR("tkCtl: reset by wdg [0x%02d]\r\n"), sys_watchdog );
+        xprintf_P(PSTR("tkCtl: reset by wdg [0x%02X]\r\n"), sys_watchdog );
         vTaskDelay( ( TickType_t)( 1000 / portTICK_PERIOD_MS ) );
         reset();
     } else {

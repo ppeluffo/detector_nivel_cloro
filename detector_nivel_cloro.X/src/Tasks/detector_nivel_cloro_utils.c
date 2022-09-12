@@ -73,14 +73,11 @@ void kick_wdt( uint8_t bit_pos)
 //------------------------------------------------------------------------------
 void config_default(void)
 {
-
-   systemConf.VREF_ADC = 2.5;
-   systemConf.VREF_ETAPE = 3.3;
-   systemConf.RETAPE_FIX = 2400;
-   systemConf.HETAPE_MIN = 3;
-   systemConf.HETAPE_MAX = 45.0;
-   systemConf.RETAPE_HMIN = 400;
-   systemConf.RETAPE_HMAX = 2400;
+   systemConf.ADC00 = 2044;
+   systemConf.ADC10 = 2235;
+   systemConf.ADC40 = 3199;
+   systemConf.timerpoll = 30;
+   
 }
 //------------------------------------------------------------------------------
 bool save_config_in_NVM(void)
@@ -139,63 +136,29 @@ uint16_t i = 0;
 	return(cks);
 }
 //------------------------------------------------------------------------------
-void convert_adc2vin(void)
-{
-    /*
-     Convierte el valor del ADC al votaje que esta a la entrada
-    */
-    systemVars.vin_adc = systemVars.adc * systemConf.VREF_ADC / 4096;
-    if (systemVars.debug) {
-        xprintf_P(PSTR("DEBUG: vinadc=%0.3f\r\n"), systemVars.vin_adc);
-    }
-}
-//------------------------------------------------------------------------------
-void convert_adcvin2retape(void)
-{
-    /*
-     Convierte el votaje que esta a la entrada del adc en la rEtape
-    */
-    systemVars.r_etape = systemVars.vin_adc * systemConf.RETAPE_FIX / ( systemConf.VREF_ETAPE - systemVars.vin_adc );
-    if (systemVars.debug) {
-        xprintf_P(PSTR("DEBUG: rEtape=%0.3f\r\n"), systemVars.r_etape);
-    }
-}
-//------------------------------------------------------------------------------
-void convert_retape2hetape(void)
-{
-    /*
-     Convierte la resistencia rEtape en la altura.
-    */
-    systemVars.h_etape = ( systemVars.r_etape - systemConf.RETAPE_HMIN ) * ( systemConf.HETAPE_MAX - systemConf.HETAPE_MIN);
-    systemVars.h_etape /= (systemConf.RETAPE_HMAX - systemConf.RETAPE_HMIN);
-    systemVars.h_etape += systemConf.HETAPE_MIN;
-    if (systemVars.debug) {
-        xprintf_P(PSTR("DEBUG: hEtape=%d\r\n"), systemVars.h_etape );
-    }
-    
-}
-//------------------------------------------------------------------------------
 void convert_hetape2dac(void)
 {
     /*
      Convierte la altura de la eTape en el valor de DAC
     */
-    
-float dac;
-    
-    dac = (1024-204)/(systemConf.HETAPE_MAX - systemConf.HETAPE_MIN);
-    dac *= ( systemVars.h_etape - systemConf.HETAPE_MIN);
-    dac += 204;
-    systemVars.dac = (uint16_t) dac;
-    
-    
+
+    if ( systemVars.h_etape > ETAPE_HMAX ) {
+        systemVars.dac = 1023;
+
+    } else if ( systemVars.h_etape < 0 ) {
+        systemVars.dac = 0;
+     
+    } else {
+        systemVars.dac = 204 + (1023 - 204) * systemVars.h_etape / ETAPE_HMAX;
+    }
+
     if (systemVars.debug) {
         xprintf_P(PSTR("DEBUG: dac=%d\r\n"), systemVars.dac );
     }
     
 }
 //------------------------------------------------------------------------------
-void convert_adc2dac(void)
+void poll_sensor(void)
 {
     /*
      * Convierto el valor del ADC ( etape ) el DAC ( corriente )
@@ -207,19 +170,50 @@ void convert_adc2dac(void)
 
 float icc;
 
-    // A partir del valor del ADC calculo la altura de la eTape
-    convert_adc2vin();
-    convert_adcvin2retape();
-    convert_retape2hetape();
+    // Leo el ADC
+    systemVars.adc = ADC_read(32);
+    if (systemVars.debug) {
+        xprintf_P(PSTR("--------------------------\r\n"));
+        xprintf_P(PSTR("DEBUG: adc=%d\r\n"), systemVars.adc );
+    }
+    
+    // Convierto a altura
+    // Tramo 3: adc > ADC40
+    if ( systemVars.adc < systemConf.ADC00 ) {
+        systemVars.h_etape = 0.0;
+    
+    } else if ( systemVars.adc < systemConf.ADC10 ) {
+        
+        systemVars.h_etape = 0.0 + ( systemVars.adc - systemConf.ADC00) * (10.0) / ( systemConf.ADC10 - systemConf.ADC00);
+        
+    } else {
+       
+         systemVars.h_etape = 10.0 + ( systemVars.adc - systemConf.ADC10) * (40.0 - 10.0) / ( systemConf.ADC40 - systemConf.ADC10);
+    }
+        
+    // Controlo errores
+    if ( systemVars.h_etape > 45.0 ) {
+        systemVars.h_etape = 45;
+    }
+                
+    if ( systemVars.h_etape < 0.0 ) {
+        systemVars.h_etape = 0.0;
+    }
+        
+    if (systemVars.debug) {
+        xprintf_P(PSTR("DEBUG: h_etape=%0.1f\r\n"), systemVars.h_etape );
+    }
+    
     convert_hetape2dac();
-
-
+    DAC_setVal(systemVars.dac);
+    
     // Convierto la altura a 4-20mA
-    icc = 20 * systemVars.dac / 1024;
+    icc = 20.0 * systemVars.dac / 1024;
     
     if (systemVars.debug) {
         xprintf_P(PSTR("DEBUG: icc=%0.3f\r\n"), icc);
-        
-    }    
+     
+    }
+    
 }
 //------------------------------------------------------------------------------

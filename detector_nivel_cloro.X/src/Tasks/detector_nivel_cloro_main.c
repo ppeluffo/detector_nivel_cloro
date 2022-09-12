@@ -126,6 +126,7 @@
 #include <avr/io.h>
 #include "detector_nivel_cloro.h"
 
+/*
 FUSES = {
 	.WDTCFG = 0x0B, // WDTCFG {PERIOD=8KCLK, WINDOW=OFF}
 	.BODCFG = 0x00, // BODCFG {SLEEP=DISABLE, ACTIVE=DISABLE, SAMPFREQ=128Hz, LVL=BODLEVEL0}
@@ -137,7 +138,18 @@ FUSES = {
 };
 
 LOCKBITS = 0x5CC5C55C; // {KEY=NOLOCK}
+*/
+FUSES = {
+	.WDTCFG = 0x0B, // WDTCFG {PERIOD=8KCLK, WINDOW=OFF}
+	.BODCFG = 0x00, // BODCFG {SLEEP=DISABLE, ACTIVE=DISABLE, SAMPFREQ=128Hz, LVL=BODLEVEL0}
+	.OSCCFG = 0x00, // OSCCFG {CLKSEL=OSCHF}
+	.SYSCFG0 = 0xC1, // SYSCFG0 {EESAVE=CLEAR, RSTPINCFG=GPIO, CRCSEL=CRC16, CRCSRC=NOCRC}
+	.SYSCFG1 = 0x07, // SYSCFG1 {SUT=0MS}
+	.CODESIZE = 0x00, // CODESIZE {CODESIZE=User range:  0x0 - 0xFF}
+	.BOOTSIZE = 0x00, // BOOTSIZE {BOOTSIZE=User range:  0x0 - 0xFF}
+};
 
+LOCKBITS = 0x5CC5C55C; // {KEY=NOLOCK}
 
 //------------------------------------------------------------------------------
 int main(void) {
@@ -149,6 +161,7 @@ int main(void) {
     
     xHandle_tkCtl = xTaskCreateStatic( tkCtl, "CTL", tkCtl_STACK_SIZE, (void *)1, tkCtl_TASK_PRIORITY, tkCtl_Buffer, &tkCtl_Buffer_Ptr );
     xHandle_tkCmd = xTaskCreateStatic( tkCmd, "CMD", tkCmd_STACK_SIZE, (void *)1, tkCmd_TASK_PRIORITY, tkCmd_Buffer, &tkCmd_Buffer_Ptr );
+    xHandle_tkSys = xTaskCreateStatic( tkSystem, "SYS", tkSys_STACK_SIZE, (void *)1, tkSys_TASK_PRIORITY, tkSys_Buffer, &tkSys_Buffer_Ptr );
 
     /* Arranco el RTOS. */
 	vTaskStartScheduler();

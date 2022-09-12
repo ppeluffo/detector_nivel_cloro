@@ -29,7 +29,7 @@ void tkCmd(void * pvParameters)
     while ( ! starting_flag )
         vTaskDelay( ( TickType_t)( 100 / portTICK_PERIOD_MS ) );
 
-	vTaskDelay( ( TickType_t)( 500 / portTICK_PERIOD_MS ) );
+	//vTaskDelay( ( TickType_t)( 500 / portTICK_PERIOD_MS ) );
 
 uint8_t c = 0;
 
@@ -113,18 +113,19 @@ static void cmdHelpFunction(void)
 		xprintf("-write:\r\n");
         xprintf("   dac{val}\r\n");
         
+    }  else if ( strcmp( strupr(argv[1]), "READ") == 0 ) {
+		xprintf("-read:\r\n");
+		xprintf("   adc {samples}\r\n");
+        xprintf("   sensor\r\n");
+        
     }  else if ( strcmp( strupr(argv[1]), "CONFIG") == 0 ) {
 		xprintf("-config:\r\n");
 		xprintf("   default,save,load\r\n");
         xprintf("   modo {NORMAL,DIAG}\r\n");
         xprintf("   debug {ON,OFF}\r\n");
-        xprintf("   VREF_ADC,VREF_ETAPE\r\n");
-        xprintf("   RETAPE_FIX,RETAPE_HMIN,RETAPE_HMAX\r\n");
-        xprintf("   HETAPE_MIN,HETAPE_MAX\r\n");
+        xprintf("   timerpoll\r\n");
+        xprintf("   ADC0,ADC10,ADC40\r\n");
 
-    }  else if ( strcmp( strupr(argv[1]), "READ") == 0 ) {
-		xprintf("-read:\r\n");
-		xprintf("   adc {samples}\r\n");
         
     }  else {
         // HELP GENERAL
@@ -135,12 +136,51 @@ static void cmdHelpFunction(void)
         xprintf("-reset\r\n");
         xprintf("-write...\r\n");
         xprintf("-config...\r\n");
+        xprintf("-calibrar...\r\n");
         xprintf("-read...\r\n");
 
     }
    
 	xprintf("Exit help \r\n");
 
+}
+//------------------------------------------------------------------------------
+static void cmdReadFunction(void)
+{
+ 
+uint8_t samples;
+
+    FRTOS_CMD_makeArgv();
+        
+    // read ADC
+    if ( strcmp( strupr(argv[1]),"ADC") == 0 ) {
+        samples = atoi(argv[2]);
+        if ( ( samples == 0) || (samples > 32)) {
+            pv_snprintfP_ERR();
+            return;
+        }
+
+        systemVars.adc = ADC_read(samples);
+        
+        xprintf_P(PSTR("ADC=%d\r\n"), systemVars.adc);
+        pv_snprintfP_OK();
+        return;
+    }
+    
+    
+    // read sensor
+    if ( strcmp( strupr(argv[1]),"SENSOR") == 0 ) {
+        poll_sensor();
+        xprintf_P(PSTR("h=%0.2f\r\n"), systemVars.h_etape);
+        pv_snprintfP_OK();
+        return;
+    }
+    
+    
+    // CMD NOT FOUND
+	xprintf("ERROR\r\nCMD NOT DEFINED\r\n\0");
+	return;
+ 
 }
 //------------------------------------------------------------------------------
 static void cmdClsFunction(void)
@@ -173,14 +213,10 @@ static void cmdStatusFunction(void)
     } else {
         xprintf_P(PSTR(" Debug: OFF\r\n"));
     }
-    xprintf_P(PSTR(" VREF_ADC=%0.3f\r\n"), systemConf.VREF_ADC);
-    xprintf_P(PSTR(" VREF_ETAPE=%0.3f\r\n"), systemConf.VREF_ETAPE);
-    xprintf_P(PSTR(" RETAPE_FIX=%d\r\n"), systemConf.RETAPE_FIX);
-    xprintf_P(PSTR(" RETAPE_HMIN=%d\r\n"), systemConf.RETAPE_HMIN);
-    xprintf_P(PSTR(" RETAPE_HMAX=%d\r\n"), systemConf.RETAPE_HMAX);
-    xprintf_P(PSTR(" HETAPE_MIN=%d\r\n"), systemConf.HETAPE_MIN);
-    xprintf_P(PSTR(" HETAPE_MAX=%d\r\n"), systemConf.HETAPE_MAX);
-    
+    xprintf_P(PSTR(" Timerpoll=%d s\r\n"), systemConf.timerpoll);
+    xprintf_P(PSTR(" ADC00=%d v\r\n"), systemConf.ADC00);
+    xprintf_P(PSTR(" ADC10=%d v\r\n"), systemConf.ADC10);
+    xprintf_P(PSTR(" ADC40=%d v\r\n"), systemConf.ADC40);
     xprintf_P(PSTR(" DAC=%d\r\n"),systemVars.dac);
     xprintf_P(PSTR(" ADC=%d\r\n"),systemVars.adc);
     
@@ -193,42 +229,16 @@ static void cmdWriteFunction(void)
         
     // write DAC
     if ( strcmp( strupr(argv[1]),"DAC") == 0 ) {
-        systemVars.dac = atoi(argv[2]);
-        DAC_setVal(systemVars.dac);
-        pv_snprintfP_OK();
-        return;
-    }
-
-    // CMD NOT FOUND
-	xprintf("ERROR\r\nCMD NOT DEFINED\r\n\0");
-	return;
- 
-}
-//------------------------------------------------------------------------------
-static void cmdReadFunction(void)
-{
- 
-    
-uint8_t samples;
-
-    FRTOS_CMD_makeArgv();
-        
-    // read ADC
-    if ( strcmp( strupr(argv[1]),"ADC") == 0 ) {
-        samples = atoi(argv[2]);
-        if ( ( samples == 0) || (samples > 32)) {
+        if ( DAC_setVal ( atoi(argv[2]) ) ) {
+            systemVars.dac = atoi(argv[2]);
+            pv_snprintfP_OK();
+        } else {
             pv_snprintfP_ERR();
-            return;
         }
-
-        systemVars.adc = ADC_read(samples);
-        
-        xprintf_P(PSTR("ADC=%d\r\n"), systemVars.adc);
-        pv_snprintfP_OK();
         return;
+        
     }
-    
-    
+
     // CMD NOT FOUND
 	xprintf("ERROR\r\nCMD NOT DEFINED\r\n\0");
 	return;
@@ -246,55 +256,34 @@ static void cmdConfigFunction(void)
 		return;
 	}
 
-    // HETAPE_MAX
-    if ( strcmp( strupr(argv[1]),"HETAPE_MAX") == 0  ) {
-        systemConf.HETAPE_MAX = atoi(argv[2]);
+    // Timerpoll
+    if ( strcmp( strupr(argv[1]),"TIMERPOLL") == 0  ) {
+        systemConf.timerpoll = atoi(argv[2]);
         pv_snprintfP_OK();
         return;   
     }
     
-    // HETAPE_MIN
-    if ( strcmp( strupr(argv[1]),"HETAPE_MIN") == 0  ) {
-        systemConf.HETAPE_MIN = atoi(argv[2]);
+    // ADC0
+    if ( strcmp( strupr(argv[1]),"ADC0") == 0  ) {
+        systemConf.ADC00 = atoi(argv[2]);
         pv_snprintfP_OK();
         return;   
     }
     
-    // RETAPE_HMAX
-    if ( strcmp( strupr(argv[1]),"RETAPE_HMAX") == 0  ) {
-        systemConf.RETAPE_HMAX = atoi(argv[2]);
-        pv_snprintfP_OK();
-        return;   
-    }
-
-    // RETAPE_HMIN
-    if ( strcmp( strupr(argv[1]),"RETAPE_HMIN") == 0  ) {
-        systemConf.RETAPE_HMIN = atoi(argv[2]);
+    // ADC10
+    if ( strcmp( strupr(argv[1]),"ADC10") == 0  ) {
+        systemConf.ADC10 = atoi(argv[2]);
         pv_snprintfP_OK();
         return;   
     }
     
-    // RETAPE_FIX
-    if ( strcmp( strupr(argv[1]),"RETAPE_FIX") == 0  ) {
-        systemConf.RETAPE_FIX = atoi(argv[2]);
+    // ADC40
+    if ( strcmp( strupr(argv[1]),"ADC40") == 0  ) {
+        systemConf.ADC40 = atoi(argv[2]);
         pv_snprintfP_OK();
         return;   
     }
-    
-    // VREF_ETAPE
-    if ( strcmp( strupr(argv[1]),"VREF_ETAPE") == 0  ) {
-        systemConf.VREF_ETAPE = atof(argv[2]);
-        pv_snprintfP_OK();
-        return;   
-    }
-    
-    // VREF_ADC
-    if ( strcmp( strupr(argv[1]),"VREF_ADC") == 0  ) {
-        systemConf.VREF_ADC = atof(argv[2]);
-        pv_snprintfP_OK();
-        return;   
-    }
-    
+               
     // modo (NORMAL,DIAG)
 	if ( strcmp( strupr(argv[1]),"MODO") == 0  ) {
 		if ( strcmp( strupr(argv[2]),"NORMAL") == 0  ) {
@@ -356,4 +345,3 @@ static void pv_snprintfP_ERR(void)
 	xprintf("error\r\n\0");
 }
 //------------------------------------------------------------------------------
-

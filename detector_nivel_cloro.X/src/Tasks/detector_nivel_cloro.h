@@ -72,8 +72,8 @@ extern "C" {
 #include "frtos-io.h"
 #include "xprintf.h"
 
-#define FW_REV "1.0.0 beta"
-#define FW_DATE "@ 20220727"
+#define FW_REV "1.0.1 beta"
+#define FW_DATE "@ 20220912"
 #define HW_MODELO "Sensor Nivel Cloro FRTOS R001 HW:AVR128DA64"
 #define FRTOS_VERSION "FW:FreeRTOS V202111.00"
 
@@ -81,10 +81,11 @@ extern "C" {
 
 #define tkCtl_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY 	( tskIDLE_PRIORITY + 1 )
+#define tkSys_TASK_PRIORITY 	( tskIDLE_PRIORITY + 1 )
 
 #define tkCtl_STACK_SIZE		384
 #define tkCmd_STACK_SIZE		384
-#define tkSystem_STACK_SIZE		384
+#define tkSys_STACK_SIZE		384
 
 StaticTask_t tkCtl_Buffer_Ptr;
 StackType_t tkCtl_Buffer [tkCtl_STACK_SIZE];
@@ -92,14 +93,14 @@ StackType_t tkCtl_Buffer [tkCtl_STACK_SIZE];
 StaticTask_t tkCmd_Buffer_Ptr;
 StackType_t tkCmd_Buffer [tkCmd_STACK_SIZE];
 
-StaticTask_t tkSystem_Buffer_Ptr;
-StackType_t tkSystem_Buffer [tkSystem_STACK_SIZE];
+StaticTask_t tkSys_Buffer_Ptr;
+StackType_t tkSys_Buffer [tkSys_STACK_SIZE];
 
 SemaphoreHandle_t sem_SYSVars;
 StaticSemaphore_t SYSVARS_xMutexBuffer;
 #define MSTOTAKESYSVARSSEMPH ((  TickType_t ) 10 )
 
-TaskHandle_t xHandle_tkCtl, xHandle_tkCmd, xHandle_tkSystem;
+TaskHandle_t xHandle_tkCtl, xHandle_tkCmd, xHandle_tkSys;
 
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
@@ -119,9 +120,10 @@ bool save_config_in_NVM(void);
 bool load_config_from_NVM(void);
 void convert_adc2dac(void);
 void convert_adc2vin(void);
-void convert_adcvin2retape(void);
+void convert_vinadc2retape(void);
 void convert_retape2hetape(void);
 void convert_hetape2dac(void);
+void poll_sensor(void);
 
 
 bool starting_flag;
@@ -135,21 +137,19 @@ struct {
     float vin_adc;
     float r_etape;
     float h_etape;
-    
-    
     bool debug;
 } systemVars;
 
+#define ETAPE_HMAX 45
+
 struct {
-    float VREF_ADC;
-    float VREF_ETAPE;
-    uint16_t RETAPE_FIX;
-    uint16_t HETAPE_MIN;
-    uint16_t HETAPE_MAX;
-    uint16_t RETAPE_HMIN;
-    uint16_t RETAPE_HMAX;
-    //
+     
+    uint16_t ADC00;
+    uint16_t ADC10;     // Valor del ADC con 10cms altura
+    uint16_t ADC40;     // Idem con 40 cms.
+    uint16_t timerpoll;
     uint8_t checksum;
+    
 } systemConf;
 
 uint8_t sys_watchdog;
